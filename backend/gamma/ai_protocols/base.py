@@ -280,8 +280,13 @@ def sse_json(response):
             continue
 
 
+def key_headers(key: str, name: str = "Authorization", prefix: str = "Bearer ") -> dict:
+    """A keyless connection sends no credential header, including an empty one."""
+    return {name: f"{prefix}{key}"} if key else {}
+
+
 def bearer_json_request(url: str, key: str, **headers) -> URLRequest:
-    return URLRequest(url, headers={"Authorization": f"Bearer {key}", "Accept": "application/json",
+    return URLRequest(url, headers={**key_headers(key), "Accept": "application/json",
                                     "User-Agent": "Gamma/model-catalog", **headers})
 
 

@@ -399,9 +399,9 @@ function ProviderForm({ value, onCancel }) {
   const choose = (next) => {
     setService(next);
     const named = services.find((item) => item.id === next);
-    if (named) setAiKeysForm((form) => ({ ...form, protocol: named.protocol, base_url: named.base_url, models: "", test_model: "" }));
-    else if (next !== "custom") setAiKeysForm((form) => ({ ...form, protocol: next, base_url: "", models: "", test_model: "" }));
-    else if (oauth) setAiKeysForm((form) => ({ ...form, protocol: "openai", base_url: "", models: "", test_model: "" }));
+    if (named) setAiKeysForm((form) => ({ ...form, protocol: named.protocol, no_auth: false, base_url: named.base_url, models: "", test_model: "" }));
+    else if (next !== "custom") setAiKeysForm((form) => ({ ...form, protocol: next, no_auth: false, base_url: "", models: "", test_model: "" }));
+    else setAiKeysForm((form) => ({ ...form, protocol: oauth ? "openai" : form.protocol, no_auth: false, api_key: "", base_url: "", models: "", test_model: "" }));
   };
   const pickTile = (next) => {
     if (next !== "other") choose(next);
@@ -415,7 +415,7 @@ function ProviderForm({ value, onCancel }) {
   const stored = aiKeysForm.id ? aiKeysInfo.providers?.find((item) => item.id === aiKeysForm.id) : null;
   // The live model list doubles as the key check: listing needs a key the
   // provider accepts, so a list is "the key works" and a refusal says why.
-  const keyChecked = !oauth && !!(aiKeysForm.api_key.trim() || stored?.key_hint);
+  const keyChecked = !oauth && !!(aiKeysForm.no_auth ? aiKeysForm.base_url.trim() : aiKeysForm.api_key.trim() || stored?.key_hint);
   // The first model of the live list is picked when none is, once per list:
   // a connection is never saved offering nothing, and no model name is
   // written into the code.
@@ -456,7 +456,7 @@ function ProviderForm({ value, onCancel }) {
 
       <Step
         n={2}
-        title={oauth ? t("Sign in with ChatGPT") : t("Paste your API key")}
+        title={oauth ? t("Sign in with ChatGPT") : t("Connect your endpoint")}
         hint={oauth
           ? t("No API key — usage is billed to your ChatGPT subscription.") : t("Stored on the server, never shown to the browser again.")}
       >
@@ -465,31 +465,36 @@ function ProviderForm({ value, onCancel }) {
             start={startChatGPTAuth} connect={connectSignIn} />
         ) : (
           <>
-            <Field label={t("API key")} hint={aiKeysForm.id ? t("Leave empty to keep the current one") : null}>
+            {service === "custom" ? <Field label={t("Authentication")}>
+              <MenuSelect block label={t("Authentication")} value={aiKeysForm.no_auth ? "none" : "key"}
+                onChange={(mode) => setAiKeysForm((form) => ({ ...form, no_auth: mode === "none", api_key: "" }))}
+                options={[["key", t("API key")], ["none", t("No authentication")]]} />
+            </Field> : null}
+            {!aiKeysForm.no_auth ? <Field label={t("API key")} hint={aiKeysForm.id ? t("Leave empty to keep the current one") : null}>
               <PasswordInput
                 autoComplete="new-password" spellCheck={false}
                 placeholder={keyHelp?.key_placeholder || t("API key")}
                 value={aiKeysForm.api_key}
                 onChange={(event) => setAiKeysForm((form) => ({ ...form, api_key: event.target.value }))}
               />
-            </Field>
-            {keyUrl ? (
+            </Field> : null}
+            {!aiKeysForm.no_auth && keyUrl ? (
               <a className="aiKeyLink" href={keyUrl} target="_blank" rel="noopener noreferrer">
                 {t("Get a key at {where}", { where: keyWhere })}<ExternalLinkIcon size={14} />
               </a>
             ) : null}
-            {service === "custom" ? <Field label={t("Base URL")} hint={t("Optional — default {default_base_url}", { default_base_url: protocol?.default_base_url || "" })}>
+            {service === "custom" ? <Field label={t("Base URL")} hint={t("Requests come from Gamma's server. localhost points to that server, or its container, not your browser's computer. In Docker, use a reachable host address or an explicitly configured host.docker.internal route.")}>
               <input
                 className="aiKeyInput" type="text" spellCheck={false}
-                placeholder={protocol?.default_base_url || ""}
+                placeholder={aiKeysForm.no_auth ? (aiKeysForm.protocol === "openai" ? "http://model-server:11434/v1" : "http://model-server:8000") : protocol?.default_base_url || ""}
                 value={aiKeysForm.base_url}
                 onChange={(event) => setAiKeysForm((form) => ({ ...form, base_url: event.target.value }))}
               />
             </Field> : null}
             {keyChecked && aiModelCatalog ? (
               <div className={`aiKeyCheck ${aiModelCatalog.error ? "aiKeysError" : aiModelCatalog.models ? "aiTestOk" : ""}`} role="status">
-                {aiModelCatalog.loading ? <><span className="transferSpin inline" /> {t("Checking the key…")}</>
-                  : aiModelCatalog.models ? <><CheckIcon size={14} /> {tn("Key works · {n} model available", "Key works · {n} models available", aiModelCatalog.models.length)}</>
+                {aiModelCatalog.loading ? <><span className="transferSpin inline" /> {t("Checking the connection…")}</>
+                  : aiModelCatalog.models ? <><CheckIcon size={14} /> {tn("Connected · {n} model available", "Connected · {n} models available", aiModelCatalog.models.length)}</>
                   : <><XIcon size={14} /> {aiModelCatalog.error}</>}
               </div>
             ) : null}
@@ -521,7 +526,7 @@ function ProviderForm({ value, onCancel }) {
           <button
             className="uiBtn sm"
             disabled={!!aiModelCatalog?.loading || formOauthPending}
-            title={formOauthPending ? t("Connect with ChatGPT first") : t("Fetch the models available to this credential")}
+            title={formOauthPending ? t("Connect with ChatGPT first") : t("Fetch the models available from this connection")}
             onClick={loadModelCatalog}
           >
             {aiModelCatalog?.loading
@@ -533,7 +538,7 @@ function ProviderForm({ value, onCancel }) {
         </div>
         {aiModelCatalog?.error ? (
           <div className="reportModalHint settingsNoMargin">
-            {keyChecked ? t("No model list without a working key.") : aiModelCatalog.error}{" "}
+            {aiModelCatalog.error}{" "}
             <button className="searchToggle" title={t("Retry loading the model list")} onClick={loadModelCatalog}><RefreshIcon size={14} /></button>
           </div>
         ) : null}

@@ -249,6 +249,8 @@ Put a TLS-terminating reverse proxy (Caddy, nginx) in front of 9001 for a domain
 
 AI is configured in the app, not the environment: each user adds provider entries under Settings → AI → Connections (pick the API format — Anthropic Messages or OpenAI Chat Completions — then a key, plus optional label, base URL, and model list), or connects a ChatGPT Plus/Pro subscription with *Sign in with ChatGPT* — OAuth, no key at all. Keys are stored server-side per user and never sent back to the browser. The base-URL variables above only change the per-protocol defaults shown in that dialog.
 
+Custom endpoints can explicitly select **No authentication** instead of supplying a dummy API key. See [custom APIs and local models](./docs/user_guide/user_guide.md#custom-apis-and-local-models) for supported formats, model selection, and the distinction between browser, server and container localhost.
+
 </details>
 
 <details>

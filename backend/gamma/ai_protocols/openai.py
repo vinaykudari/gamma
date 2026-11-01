@@ -9,7 +9,7 @@ import re
 from urllib.request import Request as URLRequest
 
 from .base import (EMPTY_REPLY_HINT, OPENAI_PICTURE_TOKENS, TOOL_IMAGES_NOTE, Protocol, api_url, as_int,
-                   attach_target, multipart_body, note_speed, parse_tool_args, served_speed_name, tool_image_turns,
+                   attach_target, key_headers, multipart_body, note_speed, parse_tool_args, served_speed_name, tool_image_turns,
                    turn_attachments)
 from .responses import OPENAI_RESPONSES
 from .services import service_of
@@ -165,7 +165,7 @@ class OpenAIChat(Protocol):
             # common compatible servers: vLLM, Ollama, llama.cpp, LiteLLM).
             body["stream_options"] = {"include_usage": True}
         return URLRequest(api_url(conf["base_url"], "/chat/completions"), data=json.dumps(body).encode(), headers={
-            "Authorization": f"Bearer {conf['api_key']}",
+            **key_headers(conf["api_key"]),
             "Content-Type": "application/json",
         })
 
@@ -255,7 +255,7 @@ class OpenAIChat(Protocol):
             fields.update({"response_format": "verbose_json", "timestamp_granularities[]": "segment"})
         body, multipart_type = multipart_body(fields, filename, content_type, audio)
         return URLRequest(api_url(conf["base_url"], "/audio/transcriptions"), data=body, headers={
-            "Authorization": f"Bearer {conf['api_key']}",
+            **key_headers(conf["api_key"]),
             "Content-Type": multipart_type,
         })
 

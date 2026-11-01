@@ -5,7 +5,7 @@ import json
 import urllib.parse
 from urllib.request import Request as URLRequest
 
-from .base import (Protocol, as_int, attach_target, note_speed, parse_tool_args, served_speed_name,
+from .base import (Protocol, as_int, attach_target, key_headers, note_speed, parse_tool_args, served_speed_name,
                    turn_attachments)
 
 API_VERSION = "2023-06-01"
@@ -148,7 +148,7 @@ class Anthropic(Protocol):
             # speaking its API behind another host may reject the field.
             _with_breakpoints(body)
         headers = {
-            "x-api-key": conf["api_key"],
+            **key_headers(conf["api_key"], "x-api-key", ""),
             "anthropic-version": API_VERSION,
             "Content-Type": "application/json",
         }
@@ -243,7 +243,7 @@ class Anthropic(Protocol):
 
     def models_request(self, conf):
         return URLRequest(f"{conf['base_url']}/v1/models?limit=100", headers={
-            "x-api-key": conf["api_key"],
+            **key_headers(conf["api_key"], "x-api-key", ""),
             "anthropic-version": API_VERSION,
             "Accept": "application/json",
             "User-Agent": "Gamma/model-catalog",

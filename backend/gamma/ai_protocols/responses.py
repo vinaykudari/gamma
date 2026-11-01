@@ -5,7 +5,7 @@ backend (chatgpt.py)."""
 import json
 from urllib.request import Request as URLRequest
 
-from .base import (OPENAI_PICTURE_TOKENS, TOOL_IMAGES_NOTE, Protocol, as_int, attach_target, note_speed,
+from .base import (OPENAI_PICTURE_TOKENS, TOOL_IMAGES_NOTE, Protocol, as_int, attach_target, key_headers, note_speed,
                    parse_tool_args, tool_image_turns, turn_attachments)
 
 
@@ -190,7 +190,7 @@ class OpenAIResponses(ResponsesWire):
         if system:
             body["instructions"] = system
         return URLRequest(f"{conf['base_url']}/v1/responses", data=json.dumps(body).encode(), headers={
-            "Authorization": f"Bearer {conf['api_key']}",
+            **key_headers(conf["api_key"]),
             "Accept": "text/event-stream",
             "Content-Type": "application/json",
         })
