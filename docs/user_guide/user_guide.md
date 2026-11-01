@@ -189,6 +189,26 @@ A connection is a sign-in or an API key plus the address the chat talks to. The 
 
 DeepSeek, Kimi, Qwen, GLM, OpenRouter and the custom endpoint sit under the **Other** tile. A coding-plan subscription is an API key the vendor's console makes for that plan, pointed at the plan's own address; Alibaba allows the Qwen Coding Plan only inside coding tools. There is no Anthropic subscription sign-in, since Anthropic's terms do not allow one: Claude is reached with a Console key.
 
+### Custom APIs and local models
+
+In **Settings → AI → Connections → Other → Custom endpoint**, choose the format your server actually implements: **OpenAI Chat Completions API** or **Anthropic Messages API**. A URL and a key do not translate an arbitrary API into either format. ChatGPT subscription sign-in stays a separate connection.
+
+Enter the **Base URL**, choose **API key** authentication and enter a key if the service needs one, or choose **No authentication** for a keyless endpoint. Keyless connections require an explicit URL and send neither a bearer token nor an API-key header. Switching a connection to No authentication removes its saved key; switching back requires a new key. Empty key fields on ordinary edits keep the saved key.
+
+Use **Fetch** to select available models, or enter a model name manually when the service does not offer a model list. Models, endpoint and authentication choice are saved per Gamma account. Keys stay on the server and are not returned to the browser. Administrators can use the same form for explicitly shared connections.
+
+| Server format | Example base URL | Notes |
+| --- | --- | --- |
+| OpenAI-compatible, including Ollama | `http://127.0.0.1:11434/v1` | Ollama's OpenAI-compatible interface supports chat and model listing without a local API key. Select a model installed on that server. No separate native Ollama adapter is needed. |
+| OpenAI-compatible gateway | `https://your-gateway.example/v1` | Enter a key if that gateway requires it. |
+| Anthropic Messages | `https://your-messages-server.example` | Use the root address; Gamma appends `/v1/messages` and `/v1/models`. |
+
+These are examples, not preconfigured destinations. Capabilities still depend on the selected model and server: tools, vision, PDFs, reasoning and dictation are not guaranteed by protocol compatibility. The existing extracted-text PDF fallback and reader citation behavior remain in place.
+
+**Where localhost points.** Gamma sends AI requests from its backend, not from the browser. A browser visiting Gamma on Dexter cannot reach a model on that browser's laptop by entering localhost. A Gamma process running directly on Dexter uses Dexter's loopback. A Docker installation uses the container's loopback, which is separate from Dexter's host loopback.
+
+For a model in another Compose service, use that service's private Docker DNS name, such as `http://model-server:11434/v1`. For a model on the Docker host, Linux Docker can add the optional host alias using the provided `docker-compose.local-api.yml.example` override; use `http://host.docker.internal:11434/v1` only once the model is reachable on that private host interface. The alias alone cannot reach a service listening exclusively on host `127.0.0.1`. Keep its listener and firewall scoped to the private container network, or use a deliberately configured private tunnel/proxy. Gamma never opens a host listener, changes a model server's bind address, or exposes a local API automatically.
+
 ## The library agent
 
 <img alt="In a folder chat, rename these AuthorYear is sent; a card shows the rename with the old title struck through; Allow once is clicked and the four cards are renamed, with an undo pill" src="assets/agent.svg" width="100%">

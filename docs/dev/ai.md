@@ -1846,3 +1846,8 @@ show what a week cost. Code: `gamma/ai_usage.py`, `ai_client.normalize_usage`,
 Which conversation a chat belongs to (a bucket per page, per folder, or
 `home`) and how earlier conversations are kept and archived are in
 [chat_history.md](chat_history.md).
+
+
+### Keyless custom endpoints
+
+Key-protocol entries may set `no_auth: true` with an explicit nonempty `base_url`. The same optional field is accepted by account/shared provider writes and model-catalog requests; catalog requests without it inherit the saved entry. Existing entries default to key authentication. Switching to no-auth clears a saved key; switching back requires one. Runtime includes keyless entries only with their explicit URL, and adapters omit credential headers for an empty runtime key. OAuth credentials and endpoint ownership are unchanged. The no-auth choice is account configuration, never a global environment fallback. `tests/test_ai_keyless_connections.py` exercises catalog, saved configuration, wire requests, mode changes and shared entries using loopback stand-in servers.

@@ -22,6 +22,7 @@ HANDOFF.md.bak
 .env
 /data
 docker-compose.yml
+docker-compose.local-api.yml
 run-local.bat
 
 # Disposable scratch

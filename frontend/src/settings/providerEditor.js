@@ -135,7 +135,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
   const stored = form?.id ? info?.providers?.find((p) => p.id === form.id) : null;
   // What the live list is for; `oauthConnectedAt` re-lists after a
   // reconnect that keeps the entry's id.
-  const target = JSON.stringify([form?.id, form?.protocol, form?.api_key, form?.base_url, form?.oauthConnectedAt]);
+  const target = JSON.stringify([form?.id, form?.protocol, form?.api_key, form?.no_auth, form?.base_url, form?.oauthConnectedAt]);
   const targetRef = React.useRef(target);
   targetRef.current = target;
   const formModels = modelList(form?.models);
@@ -151,7 +151,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
       const d = await apiJson(`${API}/ai/model-catalog`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider_id: form.id || "", protocol: form.protocol,
-          api_key: form.api_key.trim(), base_url: form.base_url.trim() }),
+          api_key: form.api_key.trim(), no_auth: !!form.no_auth, base_url: form.base_url.trim() }),
       });
       if (request === catalogRequest.current && at === targetRef.current) setCatalog({ models: d.models || [] });
     } catch (err) {
@@ -164,7 +164,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
   // Credential edits are debounced, and a stale answer is dropped.
   React.useEffect(() => {
     setCatalog(null);
-    const ready = form && (isOauth(form.protocol) ? stored?.oauth_connected : form.api_key?.trim() || stored?.key_hint);
+    const ready = form && (isOauth(form.protocol) ? stored?.oauth_connected : form.no_auth ? form.base_url?.trim() : form.api_key?.trim() || stored?.key_hint);
     if (!ready) return;
     const timer = setTimeout(loadModelCatalog, 500);
     return () => { clearTimeout(timer); catalogRequest.current++; };
@@ -298,7 +298,8 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
       setError(f.oauthState ? t("Finish the sign-in first, or paste the address it ended on.") : t("Open ChatGPT sign-in first."));
       return;
     }
-    if (!oauth && !f.id && !f.api_key.trim()) { setError(t("An API key is required.")); return; }
+    if (!oauth && f.no_auth && !f.base_url.trim()) { setError(t("Enter a base URL for a connection without authentication.")); return; }
+    if (!oauth && !f.no_auth && !f.id && !f.api_key.trim()) { setError(t("An API key is required.")); return; }
     // A plain field edit (name/models — plus key/base URL for key entries).
     // A connection made in this dialog (`fresh` survives the sign-in step,
     // which keeps the form open on the new entry) is handed on once saved.
@@ -307,6 +308,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
       const next = await apiJson(`${base}${f.id ? `/${encodeURIComponent(f.id)}` : ""}`, {
         method: f.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ protocol: f.protocol, name: f.name.trim(), base_url: f.base_url.trim(), models: f.models.trim(),
+          ...(!oauth ? { no_auth: !!f.no_auth } : {}),
           test_model: (f.test_model || "").trim(), ...(f.api_key.trim() ? { api_key: f.api_key.trim() } : {}),
           ...(f.access ? { access: f.access } : {}) }),
       });
@@ -331,7 +333,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
       || "";
     setForm({
       id: "", protocol: protocols.some((p) => p.id === protocol) ? protocol : (protocols.find((p) => p.auth === "oauth") || protocols[0])?.id || "chatgpt",
-      name: "", api_key: "", base_url: preset?.base_url || "", models: "", test_model: "",
+      name: "", api_key: "", no_auth: false, base_url: preset?.base_url || "", models: "", test_model: "",
       ...(service === "other" && !preset ? { custom: true } : {}),
       ...(fromChat ? { fromChat: true } : {}),
       ...(shared ? { access: DEFAULT_ACCESS } : {}),
@@ -368,7 +370,7 @@ export function useProviderEditor({ info, setInfo, base, signIn = `${base}/chatg
     startEdit: (p) => {
       setError("");
       setForm({ id: p.id, protocol: p.protocol, name: p.name || "", api_key: "", base_url: p.base_url || "", models: p.models || "",
-        test_model: p.test_model || "", ...(shared ? { access: p.access || DEFAULT_ACCESS } : {}) });
+        no_auth: !!p.no_auth, test_model: p.test_model || "", ...(shared ? { access: p.access || DEFAULT_ACCESS } : {}) });
     },
     close: () => { setForm(null); setError(""); },
   };

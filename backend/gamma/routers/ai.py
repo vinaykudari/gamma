@@ -580,7 +580,8 @@ def _require_editor(request: Request) -> str:
 class AIProviderRequest(BaseModel):
     protocol: str = ""      # an API-key key of ai_protocols.PROTOCOLS (required on add)
     name: str | None = None      # display label; "" = service / protocol label
-    api_key: str | None = None   # required on add; omitted/empty on edit = keep
+    api_key: str | None = None   # required with key auth; omitted/empty on edit = keep
+    no_auth: bool | None = None  # explicit keyless endpoint; requires a nonempty base URL
     base_url: str | None = None  # "" = protocol default
     models: str | None = None    # comma-separated model names; "" = none offered
     test_model: str | None = None  # model probes use (Test button / login check); "" = first model
@@ -810,6 +811,7 @@ def _signed_in_conf(user_id: str, provider_id: str, proto) -> dict:
 
 
 class ModelCatalogRequest(BaseModel):
+    no_auth: bool | None = None  # None uses the saved entry's authentication mode
     provider_id: str = ""  # saved entry to use the stored key of; "" = use the fields below
     protocol: str = ""
     api_key: str = ""
@@ -836,11 +838,14 @@ def ai_model_catalog(payload: ModelCatalogRequest, request: Request):
     if proto.auth == "oauth":
         conf = _signed_in_conf(user_id, payload.provider_id, proto)
     else:
-        key = (payload.api_key or "").strip() or (entry.get("api_key") or "").strip()
-        if not key:
+        no_auth = payload.no_auth if payload.no_auth is not None else entry.get("no_auth") is True
+        key = "" if no_auth else (payload.api_key or "").strip() or (entry.get("api_key") or "").strip()
+        explicit_base = (payload.base_url if payload.base_url is not None else entry.get("base_url") or "").strip()
+        if no_auth and not explicit_base:
+            raise HTTPException(status_code=400, detail="a base URL is required without authentication")
+        if not no_auth and not key:
             raise HTTPException(status_code=400, detail="enter the API key first, then load the model list")
-        base = ((payload.base_url if payload.base_url is not None else entry.get("base_url") or "").strip()
-                or proto.base_url).rstrip("/")
+        base = (explicit_base or proto.base_url).rstrip("/")
         conf = {"protocol": proto.id, "api_key": key, "base_url": base, "name": ""}
     # A key the provider refuses is the form's problem (400); a sign-in's
     # listing failing is the upstream's (502).

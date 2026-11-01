@@ -1,0 +1,9 @@
+# Optional Linux Docker host alias, for a deliberately configured private host API.
+# Copy to docker-compose.local-api.yml, then:
+# docker compose -f docker-compose.yml -f docker-compose.local-api.yml up -d
+# This creates no public port or host listener. A host API bound only to
+# 127.0.0.1 still needs an explicit private route; the alias does not bypass it.
+services:
+  gamma:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

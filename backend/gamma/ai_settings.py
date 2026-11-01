@@ -116,6 +116,17 @@ def apply_provider_fields(entry: dict, fields) -> None:
         if (url and not re.match(r"^https?://", url)) or len(url) > MAX_URL_LEN:
             raise HTTPException(status_code=400, detail="base URL must start with http(s)://")
         entry["base_url"] = url
+    if not oauth_entry:
+        no_auth = getattr(fields, "no_auth", None)
+        if no_auth is not None:
+            entry["no_auth"] = no_auth
+        if entry.get("no_auth") is True:
+            if not entry.get("base_url"):
+                raise HTTPException(status_code=400, detail="a base URL is required without authentication")
+            # Switching to keyless mode forgets the previous credential.
+            entry["api_key"] = ""
+        elif no_auth is False and not entry.get("api_key"):
+            raise HTTPException(status_code=400, detail="API key required")
     if fields.models is not None:
         models = str(fields.models).strip()
         if len(models) > MAX_MODELS_LEN:
@@ -133,7 +144,7 @@ def new_key_entry(fields, entry_id: str) -> dict:
     editable fields); 400 on a sign-in or unknown protocol or a missing key."""
     if fields.protocol not in ai_protocols.PROTOCOLS or is_oauth_protocol(fields.protocol):
         raise HTTPException(status_code=400, detail="unknown protocol")
-    if not (fields.api_key or "").strip():
+    if not (fields.api_key or "").strip() and not getattr(fields, "no_auth", False):
         raise HTTPException(status_code=400, detail="API key required")
     entry = {"id": entry_id, "protocol": fields.protocol,
              "name": "", "api_key": "", "base_url": "", "models": "",
@@ -171,6 +182,7 @@ def mask_entry(entry: dict, hint: bool = True) -> dict:
         "protocol": entry.get("protocol") or "",
         # Enough to recognize the key, never enough to use it.
         "key_hint": (f"…{key[-4:]}" if len(key) >= 12 else ("set" if key else "")) if hint else "",
+        "no_auth": not is_oauth_protocol(entry.get("protocol")) and entry.get("no_auth") is True,
         "base_url": (entry.get("base_url") or "").strip(),
         "models": (entry.get("models") or "").strip(),
         "test_model": (entry.get("test_model") or "").strip(),
@@ -624,9 +636,9 @@ def ai_runtime(user_id: str) -> dict:
                 conf["refresh_unreachable"] = True
         else:
             key = (e.get("api_key") or "").strip()
-            if not key:
+            if not key and not (e.get("no_auth") is True and e.get("base_url")):
                 continue
-            conf["api_key"] = key
+            conf["api_key"] = "" if e.get("no_auth") is True else key
         providers[pid] = conf
         for model in entry_models(e):
             mid = f"{pid}:{model}"
