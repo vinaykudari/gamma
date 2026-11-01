@@ -189,6 +189,18 @@ A connection is a sign-in or an API key plus the address the chat talks to. The 
 
 DeepSeek, Kimi, Qwen, GLM, OpenRouter and the custom endpoint sit under the **Other** tile. A coding-plan subscription is an API key the vendor's console makes for that plan, pointed at the plan's own address; Alibaba allows the Qwen Coding Plan only inside coding tools. There is no Anthropic subscription sign-in, since Anthropic's terms do not allow one: Claude is reached with a Console key.
 
+### ChatGPT sign-in when the browser is on another computer
+
+A localhost OAuth callback reaches the computer running the browser, not the remote Gamma server. Gamma supports pasting the returned callback address into its own connection form. Do not send that address to anyone: it contains a one-time authorization code.
+
+For a private installation accessed through an SSH tunnel, the optional `tools/chatgpt_callback_bridge.py` helper can complete that same flow locally. Create a protected JSON file with your Gamma `url`, `username` and `password`, restrict it to your account (`chmod 600`), then run:
+
+```sh
+python3 tools/chatgpt_callback_bridge.py --credentials /path/to/protected-gamma-login.json
+```
+
+Start ChatGPT sign-in **inside Gamma's connection form**, signed into the same Gamma account named in that file. The helper listens only on `127.0.0.1:1455` for 15 minutes and exits after a successful connection. It does not start a competing OAuth attempt. Gamma checks each callback's active state, expiry and account ownership, then performs its own state validation and PKCE exchange. OAuth credentials remain on Gamma; callback URLs are not logged. A stale or foreign-account attempt is rejected without ending the listener. If port 1455 is held by another program, finish or stop that program's sign-in first; do not replace an unrelated listener.
+
 ### Custom APIs and local models
 
 In **Settings → AI → Connections → Other → Custom endpoint**, choose the format your server actually implements: **OpenAI Chat Completions API** or **Anthropic Messages API**. A URL and a key do not translate an arbitrary API into either format. ChatGPT subscription sign-in stays a separate connection.
